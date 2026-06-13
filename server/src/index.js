@@ -2,7 +2,7 @@
 // Express Server Entry Point — School Management Platform
 // ============================================================
 // Bootstraps the Express application with:
-//   - CORS (configured for React dev server on :3000)
+//   - CORS (configured for React dev server on :3000 / Production URL)
 //   - JSON body parsing
 //   - Health-check endpoint
 //   - Auth, Admin, Teacher, and Parent route groups
@@ -29,16 +29,26 @@ const PORT = process.env.PORT || 5000;
 
 // ─── Global Middleware ──────────────────────────────────────
 
-// Enable CORS for the React frontend during development
+// Enable CORS for the React frontend (Development & Production)
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true,
   })
 );
 
 // Parse incoming JSON request bodies
 app.use(express.json());
+
+// ─── Root Route ─────────────────────────────────────────────
+
+/**
+ * GET /
+ * Fallback root route to prevent "Cannot GET /" error on deployment
+ */
+app.get("/", (_req, res) => {
+  res.send("🚀 School Management Platform Backend is running successfully!");
+});
 
 // ─── Health Check ───────────────────────────────────────────
 
@@ -85,7 +95,8 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 SMP Server running on http://localhost:${PORT}`);
-  console.log(`   Health check: http://localhost:${PORT}/api/health`);
+  console.log(`   Root Landing:  http://localhost:${PORT}/`);
+  console.log(`   Health check:  http://localhost:${PORT}/api/health`);
 });
 
 export default app;
