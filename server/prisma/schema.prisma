@@ -1,179 +1,140 @@
-// ============================================================
-// Prisma Schema for School Management Platform (SMP)
-// Database: MySQL 9.7
-// ============================================================
-
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ─── Enums ──────────────────────────────────────────────────
+generator client {
+  provider = "prisma-client-client"
+}
 
-/// User roles within the platform
 enum Role {
   ADMIN
   TEACHER
   PARENT
 }
 
-/// Possible attendance statuses for a student on a given day
 enum AttendanceStatus {
   PRESENT
   ABSENT
 }
 
-// ─── Models ─────────────────────────────────────────────────
-
-/// Central authentication entity.
-/// auth_identifier stores the login credential:
-///   - email for ADMIN
-///   - emp_id for TEACHER
-///   - mobile number for PARENT
 model User {
-  id              Int       @id @default(autoincrement())
-  role            Role
-  auth_identifier String    @unique
-  password_hash   String?   // nullable — parents authenticate via OTP
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  identifier   String   @unique // Email for Admin, Employee ID for Teacher, Mobile for Parent
+  passwordHash String
+  role         Role
+  createdAt    @default(now())
+  updatedAt    @updatedAt
 
   // Relations
-  teacher  Teacher?   // A TEACHER user has exactly one Teacher profile
-  students Student[]  // A PARENT user owns zero-or-more students
-
-  @@map("users")
+  teacherProfile Teacher?
+  parentProfile  Parent?
 }
 
-/// Student record, linked to a parent User via parentMobile.
-model Student {
-  id           Int      @id @default(autoincrement())
-  name         String
-  className    String   @map("class_name")
-  parentMobile String   @map("parent_mobile")
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  parent     User         @relation(fields: [parentMobile], references: [auth_identifier])
-  attendance Attendance[]
-  marks      Mark[]
-
-  @@map("students")
-}
-
-/// Teacher profile, 1-to-1 with a User of role TEACHER.
 model Teacher {
-  id                 Int                 @id @default(autoincrement())
-  userId             Int                 @unique @map("user_id")
-  name               String
-  empId              String              @unique @map("emp_id")
-  phone              String?             @unique @map("phone_number")
-  mustChangePassword Boolean             @default(true) @map("must_change_password")
-
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  employeeId  String   @unique
+  name        String
+  createdAt   @default(now())
+  updatedAt   @updatedAt
 
   // Relations
-  user        User                @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignments TeacherAssignment[]
-  marks       Mark[]
-
-  @@map("teachers")
+  marksGiven  Mark[]
 }
 
-/// Academic subject (e.g. Mathematics, Science).
+model Parent {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  parentMobile String    @unique // Matches the parentMobile criteria across students
+  name         String
+  createdAt    @default(now())
+  updatedAt    @updatedAt
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students     Student[] // Automatically links any student with this parentMobile
+}
+
+model Student {
+  id           String   @id @default(uuid())
+  name         String
+  className    String   // e.g., "10-A", "11-B"
+  parentMobile String   // Structural logical link to Parent profile
+  createdAt    @default(now())
+  updatedAt    @updatedAt
+
+  // Relations
+  parent       Parent?  @relation(fields: [parentMobile], references: [parentMobile], onDelete: SetNull)
+  attendance   Attendance[]
+  marks        Mark[]
+
+  @@index([className])
+  @@index([parentMobile])
+}
+
 model Subject {
-  id   Int    @id @default(autoincrement())
-  name String @unique
+  id          String   @id @default(uuid())
+  name        String   @unique
+  createdAt   @default(now())
+  updatedAt   @updatedAt
 
   // Relations
   assignments TeacherAssignment[]
   marks       Mark[]
-
-  @@map("subjects")
 }
 
-/// A school class/section (e.g. "10-A", "9-B").
-/// Managed independently so admins can pre-create classes
-/// before students are enrolled.
-model Class {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("classes")
-}
-
-/// Maps a teacher to a class + subject combination.
-/// A teacher can teach multiple subjects across multiple classes.
 model TeacherAssignment {
-  id        Int    @id @default(autoincrement())
-  teacherId Int    @map("teacher_id")
-  className String @map("class_name")
-  subjectId Int    @map("subject_id")
+  id        String   @id @default(uuid())
+  teacherId String
+  subjectId String
+  className String   // e.g., "10-A"
+  createdAt @default(now())
+  updatedAt @updatedAt
 
   // Relations
-  teacher Teacher @relation(fields: [teacherId], references: [id])
-  subject Subject @relation(fields: [subjectId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  // A teacher cannot be assigned the same subject in the same class twice
+  // Prevents duplicate assignments of the same teacher to the same class/subject combo
   @@unique([teacherId, className, subjectId])
-  @@map("teacher_assignments")
+  @@index([className])
 }
 
-/// Daily attendance record for a student.
 model Attendance {
-  id        Int              @id @default(autoincrement())
-  studentId Int              @map("student_id")
-  date      DateTime
+  id        String           @id @default(uuid())
+  studentId String
+  date      DateTime         @db.Date
   status    AttendanceStatus
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   // Relations
-  student Student @relation(fields: [studentId], references: [id])
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  // One attendance entry per student per day
+  // Ensures a student only has one explicit attendance record per calendar date
   @@unique([studentId, date])
-  @@map("attendance")
+  @@index([date])
 }
 
-/// Exam marks for a student in a specific subject, graded by a teacher.
 model Mark {
-  id        Int    @id @default(autoincrement())
-  studentId Int    @map("student_id")
-  subjectId Int    @map("subject_id")
-  teacherId Int    @map("teacher_id")
-  score     Float
-  maxScore  Float  @default(100) @map("max_score")
-  examName  String @map("exam_name")
+  id            String   @id @default(uuid())
+  studentId     String
+  subjectId     String
+  teacherId     String
+  marksObtained Float
+  totalMarks    Float    @default(100)
+  examTerm      String   // e.g., "Midterm", "Finals"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  student Student @relation(fields: [studentId], references: [id])
-  subject Subject @relation(fields: [subjectId], references: [id])
-  teacher Teacher @relation(fields: [teacherId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject       Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher       Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
 
-  // A student can only have one mark per subject per exam
-  @@unique([studentId, subjectId, examName])
-  @@map("marks")
-}
-
-// ─── Announcement Models ──────────────────────────────────────
-
-enum Audience {
-  TEACHER
-  PARENT
-  BOTH
-}
-
-model Announcement {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String   @db.Text
-  target    Audience
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("announcements")
+  // Enforces single input per student per subject per exam term
+  @@unique([studentId, subjectId, examTerm])
 }
