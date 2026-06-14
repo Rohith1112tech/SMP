@@ -31,11 +31,19 @@ function AdminShell({ children }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
   const [updatingSettings, setUpdatingSettings] = useState(false);
+<<<<<<< HEAD
+=======
+  const [showPassword, setShowPassword] = useState(false);
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
 
   function openSettings() {
     setEmailInput(user?.auth_identifier || "");
     setPasswordInput("");
     setConfirmPasswordInput("");
+<<<<<<< HEAD
+=======
+    setShowPassword(false);
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
     setSettingsModalOpen(true);
   }
 
@@ -186,7 +194,11 @@ function AdminShell({ children }) {
       </main>
 
       {/* Admin Settings Modal */}
+<<<<<<< HEAD
       <Modal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} title="Admin Settings">
+=======
+      <Modal isOpen={settingsModalOpen} onClose={() => { setSettingsModalOpen(false); setShowPassword(false); }} title="Admin Settings">
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -206,6 +218,7 @@ function AdminShell({ children }) {
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               New Password (leave blank to keep current)
             </label>
+<<<<<<< HEAD
             <input
               type="password"
               placeholder="••••••••"
@@ -213,12 +226,44 @@ function AdminShell({ children }) {
               onChange={(e) => setPasswordInput(e.target.value)}
               className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
+=======
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full px-4 pr-11 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none select-none"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                    <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                    <line x1="2" x2="22" y1="2" y2="22" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               Confirm New Password
             </label>
+<<<<<<< HEAD
             <input
               type="password"
               placeholder="••••••••"
@@ -226,12 +271,47 @@ function AdminShell({ children }) {
               onChange={(e) => setConfirmPasswordInput(e.target.value)}
               className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
+=======
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={confirmPasswordInput}
+                onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                className="w-full px-4 pr-11 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none select-none"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                    <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                    <line x1="2" x2="22" y1="2" y2="22" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
+<<<<<<< HEAD
               onClick={() => setSettingsModalOpen(false)}
+=======
+              onClick={() => { setSettingsModalOpen(false); setShowPassword(false); }}
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
               className="px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
             >
               Cancel

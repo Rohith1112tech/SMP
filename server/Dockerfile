@@ -38,4 +38,6 @@ USER appuser
 
 EXPOSE 5000
 
-CMD ["node", "src/index.js"]
+<<<<<<< HEAD
+CMD ["node", "src/server.js"]
+>>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)

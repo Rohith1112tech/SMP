@@ -1,0 +1,26 @@
+# ============================================================
+# Render Blueprint Configuration (render.yaml)
+# ============================================================
+# Use this file to deploy the School Management Platform (SMP)
+# backend web service automatically on Render.
+# ============================================================
+
+services:
+  - type: web
+    name: smp-backend
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Must be provided by user (MySQL Database URL)
+      - key: JWT_SECRET
+        generateValue: true # Render will automatically generate a secure secret
+      - key: JWT_REFRESH_SECRET
+        generateValue: true # Render will automatically generate a secure secret
