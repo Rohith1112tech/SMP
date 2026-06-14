@@ -39,7 +39,6 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman, or curl) 
-      // or if the origin is explicitly allowed
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -47,6 +46,7 @@ app.use(
       }
     },
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"], // Added explicitly for JWT tokens
   })
 );
 
@@ -108,10 +108,11 @@ app.use((err, _req, res, _next) => {
 
 // ─── Start Server ───────────────────────────────────────────
 
+// Binding explicitly to host "0.0.0.0" so cloud platforms (Render) can discover the port
 if (process.env.VERCEL !== "1") {
-  app.listen(PORT, () => {
-    console.log(`🚀 SMP Server running on port ${PORT}`);
-    console.log(`    Health check available at /api/health`);
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 SMP Server securely running on port ${PORT} and bound to 0.0.0.0`);
+    console.log(`   Health check available at /api/health`);
   });
 }
 
