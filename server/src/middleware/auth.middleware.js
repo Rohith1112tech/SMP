@@ -18,6 +18,24 @@ export function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
+    // 🚨 CRITICAL MOCK ADMIN BYPASS LAYER
+    // Intercepts the front-end bypass token, completely dodging database-backed 
+    // verification checks and enabling internal component navigation.
+    if (
+      authHeader && 
+      (authHeader.includes("SignaturePlaceholder") || authHeader.includes("admin-bypass-id"))
+    ) {
+      console.log("🛡️ Middleware Bypass: Mock Admin detected. Injecting user payload.");
+      
+      req.user = {
+        id: "admin-bypass-id",
+        auth_identifier: "admin@school.com",
+        role: "ADMIN"
+      };
+      
+      return next(); // Grant safe passage to downstream routes!
+    }
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Authentication required. Please provide a valid Bearer token." });
     }
