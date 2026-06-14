@@ -23,10 +23,7 @@ function TeacherShell({ children }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-<<<<<<< HEAD
-=======
   const [showPassword, setShowPassword] = useState(false);
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
 
   const handlePasswordChangeSubmit = async (e) => {
     e.preventDefault();
@@ -81,15 +78,6 @@ function TeacherShell({ children }) {
                 <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
                   New Password
                 </label>
-<<<<<<< HEAD
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-=======
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -119,22 +107,12 @@ function TeacherShell({ children }) {
                     )}
                   </button>
                 </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
                   Confirm Password
                 </label>
-<<<<<<< HEAD
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-=======
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -164,7 +142,6 @@ function TeacherShell({ children }) {
                     )}
                   </button>
                 </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
               </div>
 
               {error && (
