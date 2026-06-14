@@ -2,9 +2,9 @@
 // Express Server Entry Point — School Management Platform
 // ============================================================
 // Bootstraps the Express application with:
-//   - CORS (configured for React dev server on :3000)
+//   - CORS (configured for React dev server & Production Netlify)
 //   - JSON body parsing
-//   - Health-check endpoint
+//   - Root landing route & Health-check endpoint
 //   - Auth, Admin, Teacher, and Parent route groups
 //   - Global error handler
 // ============================================================
@@ -29,10 +29,23 @@ const PORT = process.env.PORT || 5000;
 
 // ─── Global Middleware ──────────────────────────────────────
 
-// Enable CORS for the React frontend during development
+// Allowed origins for CORS (Development + Live Production)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://turbosmp.netlify.app" // 🚀 Your live frontend link
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, or curl) 
+      // or if the origin is explicitly allowed
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
@@ -40,7 +53,19 @@ app.use(
 // Parse incoming JSON request bodies
 app.use(express.json());
 
-// ─── Health Check ───────────────────────────────────────────
+// ─── Base Routes ────────────────────────────────────────────
+
+/**
+ * GET /
+ * Root endpoint to verify server is live via browser.
+ */
+app.get("/", (_req, res) => {
+  res.json({
+    status: "online",
+    message: "Welcome to the School Management Platform API",
+    healthCheck: "/api/health"
+  });
+});
 
 /**
  * GET /api/health
@@ -85,8 +110,8 @@ app.use((err, _req, res, _next) => {
 
 if (process.env.VERCEL !== "1") {
   app.listen(PORT, () => {
-    console.log(`🚀 SMP Server running on http://localhost:${PORT}`);
-    console.log(`   Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🚀 SMP Server running on port ${PORT}`);
+    console.log(`    Health check available at /api/health`);
   });
 }
 
