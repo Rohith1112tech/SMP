@@ -1,4 +1,7 @@
-const BASE_URL = "http://localhost:5000/api";
+// Dynamic Base URL selection
+const BASE_URL = typeof window !== "undefined" && window.location.hostname === "localhost"
+  ? "http://localhost:5000/api"
+  : "https://smp-fptu.onrender.com/api"; // 🚀 Points to your live Render backend
 
 async function request(endpoint, options = {}) {
   const url = `${BASE_URL}${endpoint}`;
@@ -26,7 +29,8 @@ async function request(endpoint, options = {}) {
 
     // Handle 401 — clear auth and redirect
     if (response.status === 401) {
-      if (typeof window !== "undefined") {
+      // ⚠️ IMPORTANT FIX: Prevent an infinite redirect loop on the login page itself!
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         window.location.href = "/login";
