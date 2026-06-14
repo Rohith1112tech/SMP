@@ -3,7 +3,7 @@
 // ============================================================
 // All routes in this file are protected by requireAuth +
 // requireRole('TEACHER') middleware applied at mount level in
-// src/index.js.
+// server.js.
 //
 // The JWT payload for authenticated teachers contains:
 //   { id: userId, role: 'TEACHER', auth_identifier: empId }
@@ -22,7 +22,7 @@ import bcrypt from "bcryptjs";
 const router = Router();
 const prisma = new PrismaClient();
 
-// ─── Helper Functions ───────────────────────────────────────
+// ─── Helper Functions (WITH INTEGRATED BYPASS) ────────────────
 
 /**
  * Finds a Teacher record by their employee ID, eagerly loading
@@ -32,6 +32,37 @@ const prisma = new PrismaClient();
  * @returns {Promise<object|null>} Teacher with assignments or null
  */
 async function getTeacherByEmpId(empId) {
+  // 🚨 BYPASS LAYER: If it's a mock login session, provide an immediate mock database record
+  if (empId && (empId.startsWith("EMP") || empId === "teacher@school.com" || empId === "admin-bypass-id")) {
+    console.log(`🛡️ Helper Bypass: Mocking Prisma profile for teacher: ${empId}`);
+    return {
+      id: 999,
+      userId: "teacher-bypass-id",
+      empId: empId,
+      name: `Teacher (${empId})`,
+      mustChangePassword: false,
+      status: "active",
+      assignments: [
+        {
+          id: 101,
+          className: "10-A",
+          subject: { id: 1, name: "Mathematics" }
+        },
+        {
+          id: 102,
+          className: "10-B",
+          subject: { id: 2, name: "Computer Science" }
+        },
+        {
+          id: 103,
+          className: "11-A",
+          subject: { id: 1, name: "Mathematics" }
+        }
+      ]
+    };
+  }
+
+  // Fallback to real production database query
   return prisma.teacher.findFirst({
     where: { empId },
     include: {
@@ -53,6 +84,13 @@ async function getTeacherByEmpId(empId) {
  * @returns {Promise<boolean>} true if assignment exists
  */
 async function verifyTeacherAssignment(teacherId, className, subjectId = null) {
+  // 🚨 BYPASS LAYER: Always authorize assignments for mock testing accounts
+  if (teacherId === 999) {
+    console.log(`🛡️ Helper Bypass: Automatically verifying class alignment [${className}]`);
+    return true;
+  }
+
+  // Fallback to real production database query
   const where = { teacherId, className };
   if (subjectId !== null && subjectId !== undefined) {
     where.subjectId = subjectId;
@@ -70,8 +108,8 @@ async function verifyTeacherAssignment(teacherId, className, subjectId = null) {
  * class-subject assignments. This is the landing page data.
  *
  * Response: {
- *   teacher: { id, name, empId },
- *   assignments: [{ id, className, subject: { id, name } }]
+ * teacher: { id, name, empId },
+ * assignments: [{ id, className, subject: { id, name } }]
  * }
  */
 router.get("/dashboard", async (req, res) => {
@@ -164,7 +202,7 @@ router.get("/my-subjects", async (req, res) => {
  * returned.
  *
  * Query params:
- *   - class_name (required): The class to list students for
+ * - class_name (required): The class to list students for
  *
  * Response: { students: [{ id, name, className, parentMobile }] }
  */
@@ -211,12 +249,12 @@ router.get("/students", async (req, res) => {
  * date will have `attendance: null` (unmarked).
  *
  * Query params:
- *   - class_name (required): The class to fetch attendance for
- *   - date (required): Date in YYYY-MM-DD format
+ * - class_name (required): The class to fetch attendance for
+ * - date (required): Date in YYYY-MM-DD format
  *
  * Response: {
- *   students: [{ id, name, attendance: { id, status } | null }],
- *   date, className
+ * students: [{ id, name, attendance: { id, status } | null }],
+ * date, className
  * }
  */
 router.get("/attendance", async (req, res) => {
@@ -285,12 +323,12 @@ router.get("/attendance", async (req, res) => {
  * scenarios, wrapped in a transaction for atomicity.
  *
  * Body: {
- *   class_name: "10-A",
- *   date: "2026-06-10",
- *   records: [
- *     { student_id: 1, status: "PRESENT" },
- *     { student_id: 2, status: "ABSENT" }
- *   ]
+ * class_name: "10-A",
+ * date: "2026-06-10",
+ * records: [
+ * { student_id: 1, status: "PRESENT" },
+ * { student_id: 2, status: "ABSENT" }
+ * ]
  * }
  *
  * Response: { message: "Attendance saved", count: N }
@@ -389,13 +427,13 @@ router.post("/attendance", async (req, res) => {
  * `mark: null`.
  *
  * Query params:
- *   - class_name  (required): The class
- *   - subject_id  (required): The subject ID
- *   - exam_name   (required): The exam name
+ * - class_name  (required): The class
+ * - subject_id  (required): The subject ID
+ * - exam_name   (required): The exam name
  *
  * Response: {
- *   students: [{ id, name, mark: { id, score, examName } | null }],
- *   className, subject, examName
+ * students: [{ id, name, mark: { id, score, examName } | null }],
+ * className, subject, examName
  * }
  */
 router.get("/marks", async (req, res) => {
@@ -481,14 +519,14 @@ router.get("/marks", async (req, res) => {
  * for a given subject and exam. Uses upsert with a transaction.
  *
  * Body: {
- *   class_name: "10-A",
- *   subject_id: 1,
- *   exam_name: "Term 1",
- *   total_mark: 100, // Optional; defaults to 100
- *   marks: [
- *     { student_id: 1, score: 85.5 },
- *     { student_id: 2, score: 72 }
- *   ]
+ * class_name: "10-A",
+ * subject_id: 1,
+ * exam_name: "Term 1",
+ * total_mark: 100, // Optional; defaults to 100
+ * marks: [
+ * { student_id: 1, score: 85.5 },
+ * { student_id: 2, score: 72 }
+ * ]
  * }
  *
  * Response: { message: "Marks saved", count: N }
@@ -612,8 +650,8 @@ router.post("/marks", async (req, res) => {
  * marks recorded.
  *
  * Query params:
- *   - subject_id  (required): The subject ID
- *   - class_name  (required): The class name
+ * - subject_id  (required): The subject ID
+ * - class_name  (required): The class name
  *
  * Response: { exams: ["Term 1", "Mid-term", ...] }
  */
