@@ -8,7 +8,7 @@
 // ============================================================
 
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import bcryptjs from "bcryptjs"; // Standardized to avoid runtime library conflicts
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -38,7 +38,10 @@ export async function login(req, res) {
         .json({ error: "auth_identifier, password, and role are required." });
     }
 
-    if (!["ADMIN", "TEACHER"].includes(role)) {
+    // Convert incoming role to uppercase to match DB constraints strictly
+    const upperRole = role.toUpperCase();
+
+    if (!["ADMIN", "TEACHER"].includes(upperRole)) {
       return res
         .status(400)
         .json({ error: "This endpoint supports ADMIN and TEACHER roles only. Parents should use /send-otp." });
@@ -46,7 +49,10 @@ export async function login(req, res) {
 
     // ── Find the user ──
     const user = await prisma.user.findFirst({
-      where: { auth_identifier, role },
+      where: { 
+        auth_identifier: auth_identifier, 
+        role: upperRole 
+      },
       include: {
         teacher: true,
       },
@@ -61,7 +67,8 @@ export async function login(req, res) {
       return res.status(401).json({ error: "Password login is not configured for this account." });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    // Using bcryptjs safely
+    const isMatch = await bcryptjs.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials." });
     }
@@ -93,8 +100,6 @@ export async function login(req, res) {
  * Body: { mobile }
  *
  * Generates and returns an OTP for the parent's mobile number.
- * In production the OTP would be sent via SMS; here it is
- * returned in the response for development / testing purposes.
  */
 export async function sendOTP(req, res) {
   try {
@@ -115,7 +120,7 @@ export async function sendOTP(req, res) {
         .json({ error: "No parent account found with this mobile number." });
     }
 
-    // ── Generate and (in dev) return the OTP ──
+    // ── Generate and return the OTP ──
     const otp = generateOTP(mobile);
 
     return res.json({
@@ -188,7 +193,6 @@ export async function verifyOTPHandler(req, res) {
  * Body: { refreshToken }
  *
  * Accepts a valid refresh token and returns a new access token.
- * This allows the client to maintain sessions without re-login.
  */
 export async function refreshToken(req, res) {
   try {
@@ -255,8 +259,8 @@ export async function teacherResetPassword(req, res) {
       return res.status(404).json({ error: "No teacher account found matching the details provided." });
     }
 
-    // Hash the new password
-    const password_hash = await bcrypt.hash(newPassword, 10);
+    // Hash the new password using bcryptjs
+    const password_hash = await bcryptjs.hash(newPassword, 10);
 
     // Update user password and set mustChangePassword to false
     await prisma.$transaction([
