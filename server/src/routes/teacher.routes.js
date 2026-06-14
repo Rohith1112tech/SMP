@@ -10,9 +10,9 @@
 // So req.user.id = User.id, req.user.auth_identifier = Teacher.empId
 //
 // SECURITY: Every endpoint first resolves the Teacher profile
-// from req.user.auth_identifier (emp_id) and verifies that the
+// from req.user.auth_identifier (employeeId) and verifies that the
 // teacher is assigned to the requested class/subject before
-// returning or modifying any data.
+// returning or modifying any data. No bypass mock layers allowed.
 // ============================================================
 
 import { Router } from "express";
@@ -22,49 +22,20 @@ import bcrypt from "bcryptjs";
 const router = Router();
 const prisma = new PrismaClient();
 
-// ─── Helper Functions (WITH INTEGRATED BYPASS) ────────────────
+// ─── Helper Functions (NO BYPASS - STRICT DATA MATCHING) ─────
 
 /**
- * Finds a Teacher record by their employee ID, eagerly loading
- * all of their class/subject assignments with subject details.
+ * Finds a Teacher record by their employee ID from the token context,
+ * eagerly loading all of their class/subject assignments.
  *
- * @param {string} empId - The teacher's employee identifier
+ * @param {string} empId - The teacher's unique employee identifier
  * @returns {Promise<object|null>} Teacher with assignments or null
  */
 async function getTeacherByEmpId(empId) {
-  // 🚨 BYPASS LAYER: If it's a mock login session, provide an immediate mock database record
-  if (empId && (empId.startsWith("EMP") || empId === "teacher@school.com" || empId === "admin-bypass-id")) {
-    console.log(`🛡️ Helper Bypass: Mocking Prisma profile for teacher: ${empId}`);
-    return {
-      id: 999,
-      userId: "teacher-bypass-id",
-      empId: empId,
-      name: `Teacher (${empId})`,
-      mustChangePassword: false,
-      status: "active",
-      assignments: [
-        {
-          id: 101,
-          className: "10-A",
-          subject: { id: 1, name: "Mathematics" }
-        },
-        {
-          id: 102,
-          className: "10-B",
-          subject: { id: 2, name: "Computer Science" }
-        },
-        {
-          id: 103,
-          className: "11-A",
-          subject: { id: 1, name: "Mathematics" }
-        }
-      ]
-    };
-  }
+  if (!empId) return null;
 
-  // Fallback to real production database query
   return prisma.teacher.findFirst({
-    where: { empId },
+    where: { employeeId: String(empId).trim() },
     include: {
       assignments: {
         include: { subject: true },
@@ -75,26 +46,20 @@ async function getTeacherByEmpId(empId) {
 
 /**
  * Checks whether a teacher has a valid assignment for a given
- * class (and optionally a specific subject). Used as a guard
- * before any data access or mutation on class/subject data.
+ * class (and optionally a specific subject UUID). Used as a strict RBAC guard.
  *
- * @param {number}      teacherId  - Teacher's primary key
+ * @param {string}      teacherId  - Teacher's primary key UUID String
  * @param {string}      className  - The class name to verify
- * @param {number|null} subjectId  - Optional subject ID to also verify
+ * @param {string|null} subjectId  - Optional subject UUID String to verify
  * @returns {Promise<boolean>} true if assignment exists
  */
 async function verifyTeacherAssignment(teacherId, className, subjectId = null) {
-  // 🚨 BYPASS LAYER: Always authorize assignments for mock testing accounts
-  if (teacherId === 999) {
-    console.log(`🛡️ Helper Bypass: Automatically verifying class alignment [${className}]`);
-    return true;
+  const where = { teacherId, className: String(className).trim() };
+  
+  if (subjectId !== null && subjectId !== undefined) {
+    where.subjectId = String(subjectId).trim();
   }
 
-  // Fallback to real production database query
-  const where = { teacherId, className };
-  if (subjectId !== null && subjectId !== undefined) {
-    where.subjectId = subjectId;
-  }
   const assignment = await prisma.teacherAssignment.findFirst({ where });
   return !!assignment;
 }
@@ -103,27 +68,19 @@ async function verifyTeacherAssignment(teacherId, className, subjectId = null) {
 
 /**
  * GET /api/teacher/dashboard
- *
- * Fetches the authenticated teacher's profile and all of their
- * class-subject assignments. This is the landing page data.
- *
- * Response: {
- * teacher: { id, name, empId },
- * assignments: [{ id, className, subject: { id, name } }]
- * }
  */
 router.get("/dashboard", async (req, res) => {
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
 
   if (!teacher) {
-    return res.status(404).json({ error: "Teacher profile not found" });
+    return res.status(404).json({ error: "Teacher profile matching active login credentials not found" });
   }
 
   res.json({
     teacher: {
       id: teacher.id,
       name: teacher.name,
-      empId: teacher.empId,
+      empId: teacher.employeeId,
     },
     assignments: teacher.assignments.map((a) => ({
       id: a.id,
@@ -140,20 +97,15 @@ router.get("/dashboard", async (req, res) => {
 
 /**
  * GET /api/teacher/my-classes
- *
- * Returns the distinct class names the teacher is assigned to.
- * Useful for populating class selector dropdowns in the UI.
- *
- * Response: { classes: ["10-A", "10-B", ...] }
  */
 router.get("/my-classes", async (req, res) => {
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
 
   if (!teacher) {
-    return res.status(404).json({ error: "Teacher profile not found" });
+    return res.status(404).json({ error: "Teacher profile context not found" });
   }
 
-  // Extract unique class names from assignments
+  // Extract real dynamic unique class names assigned by the admin
   const classSet = new Set(teacher.assignments.map((a) => a.className));
   const classes = [...classSet].sort();
 
@@ -164,21 +116,15 @@ router.get("/my-classes", async (req, res) => {
 
 /**
  * GET /api/teacher/my-subjects
- *
- * Returns the distinct subjects the teacher is assigned to,
- * deduplicated by subject ID (a teacher may teach the same
- * subject in multiple classes).
- *
- * Response: { subjects: [{ id, name }, ...] }
  */
 router.get("/my-subjects", async (req, res) => {
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
 
   if (!teacher) {
-    return res.status(404).json({ error: "Teacher profile not found" });
+    return res.status(404).json({ error: "Teacher profile context not found" });
   }
 
-  // Deduplicate subjects by ID using a Map
+  // Deduplicate subjects via unique UUID Keys using a Map structure map
   const subjectMap = new Map();
   for (const a of teacher.assignments) {
     if (!subjectMap.has(a.subject.id)) {
@@ -196,15 +142,6 @@ router.get("/my-subjects", async (req, res) => {
 
 /**
  * GET /api/teacher/students?class_name=10-A
- *
- * Fetches all students enrolled in a specific class. The teacher
- * must be assigned to the requested class; otherwise a 403 is
- * returned.
- *
- * Query params:
- * - class_name (required): The class to list students for
- *
- * Response: { students: [{ id, name, className, parentMobile }] }
  */
 router.get("/students", async (req, res) => {
   const { class_name } = req.query;
@@ -216,17 +153,17 @@ router.get("/students", async (req, res) => {
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
 
   if (!teacher) {
-    return res.status(404).json({ error: "Teacher profile not found" });
+    return res.status(404).json({ error: "Teacher profile context not found" });
   }
 
-  // Authorization: teacher must be assigned to this class
+  // Strict Authorization Check: Guard against accessing unassigned classes
   const isAssigned = await verifyTeacherAssignment(teacher.id, class_name);
   if (!isAssigned) {
-    return res.status(403).json({ error: "You are not assigned to this class" });
+    return res.status(403).json({ error: "Access Denied: You are not assigned to manage this classroom segment" });
   }
 
   const students = await prisma.student.findMany({
-    where: { className: class_name },
+    where: { className: String(class_name).trim() },
     select: {
       id: true,
       name: true,
@@ -242,52 +179,33 @@ router.get("/students", async (req, res) => {
 // ─── 5. GET /attendance ─────────────────────────────────────
 
 /**
- * GET /api/teacher/attendance?class_name=10-A&date=2026-06-10
- *
- * Fetches attendance records for all students in a class on a
- * specific date. Students without an attendance record for that
- * date will have `attendance: null` (unmarked).
- *
- * Query params:
- * - class_name (required): The class to fetch attendance for
- * - date (required): Date in YYYY-MM-DD format
- *
- * Response: {
- * students: [{ id, name, attendance: { id, status } | null }],
- * date, className
- * }
+ * GET /api/teacher/attendance?class_name=10-A&date=2026-06-14
  */
 router.get("/attendance", async (req, res) => {
   const { class_name, date } = req.query;
 
   if (!class_name || !date) {
-    return res
-      .status(400)
-      .json({ error: "class_name and date query parameters are required" });
+    return res.status(400).json({ error: "class_name and date query parameters are required" });
   }
 
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
 
   if (!teacher) {
-    return res.status(404).json({ error: "Teacher profile not found" });
+    return res.status(404).json({ error: "Teacher context missing" });
   }
 
-  // Authorization: teacher must be assigned to this class
   const isAssigned = await verifyTeacherAssignment(teacher.id, class_name);
   if (!isAssigned) {
-    return res.status(403).json({ error: "You are not assigned to this class" });
+    return res.status(403).json({ error: "Access Denied: Classroom unallocated to active session identifier" });
   }
 
-  // Parse the date string into a UTC Date object (midnight)
   const attendanceDate = new Date(date + "T00:00:00.000Z");
-
   if (isNaN(attendanceDate.getTime())) {
     return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
   }
 
-  // Fetch students with their attendance for the specific date
   const students = await prisma.student.findMany({
-    where: { className: class_name },
+    where: { className: String(class_name).trim() },
     select: {
       id: true,
       name: true,
@@ -299,9 +217,8 @@ router.get("/attendance", async (req, res) => {
     orderBy: { name: "asc" },
   });
 
-  // Flatten: if attendance array is empty → null, else take first entry
   const result = students.map((s) => ({
-    id: s.id,
+    id: s.id, // String UUID
     name: s.name,
     attendance: s.attendance.length > 0 ? s.attendance[0] : null,
   }));
@@ -317,30 +234,12 @@ router.get("/attendance", async (req, res) => {
 
 /**
  * POST /api/teacher/attendance
- *
- * Marks or updates attendance for multiple students in a class
- * on a given date. Uses upsert to handle both create and update
- * scenarios, wrapped in a transaction for atomicity.
- *
- * Body: {
- * class_name: "10-A",
- * date: "2026-06-10",
- * records: [
- * { student_id: 1, status: "PRESENT" },
- * { student_id: 2, status: "ABSENT" }
- * ]
- * }
- *
- * Response: { message: "Attendance saved", count: N }
  */
 router.post("/attendance", async (req, res) => {
   const { class_name, date, records } = req.body;
 
-  // ── Input validation ────────────────────────────────────
   if (!class_name || !date || !Array.isArray(records) || records.length === 0) {
-    return res.status(400).json({
-      error: "class_name, date, and a non-empty records array are required",
-    });
+    return res.status(400).json({ error: "class_name, date, and a non-empty records array are required" });
   }
 
   const attendanceDate = new Date(date + "T00:00:00.000Z");
@@ -348,39 +247,22 @@ router.post("/attendance", async (req, res) => {
     return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
   }
 
-  // Validate status values
-  const validStatuses = ["PRESENT", "ABSENT"];
-  for (const record of records) {
-    if (!record.student_id || !record.status) {
-      return res.status(400).json({
-        error: "Each record must have student_id and status",
-      });
-    }
-    if (!validStatuses.includes(record.status)) {
-      return res.status(400).json({
-        error: `Invalid status "${record.status}". Must be PRESENT or ABSENT`,
-      });
-    }
-  }
-
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
-
   if (!teacher) {
     return res.status(404).json({ error: "Teacher profile not found" });
   }
 
-  // Authorization: teacher must be assigned to this class
   const isAssigned = await verifyTeacherAssignment(teacher.id, class_name);
   if (!isAssigned) {
-    return res.status(403).json({ error: "You are not assigned to this class" });
+    return res.status(403).json({ error: "Unauthorized access path attempted on target resource" });
   }
 
-  // Validate that all student_ids belong to the given class
-  const studentIds = records.map((r) => r.student_id);
+  // Bulk query verification to confirm all target students belong to the class
+  const studentIds = records.map((r) => String(r.student_id));
   const validStudents = await prisma.student.findMany({
     where: {
       id: { in: studentIds },
-      className: class_name,
+      className: String(class_name).trim(),
     },
     select: { id: true },
   });
@@ -394,7 +276,6 @@ router.post("/attendance", async (req, res) => {
     });
   }
 
-  // ── Upsert attendance in a transaction ──────────────────
   const upserts = records.map((record) =>
     prisma.attendance.upsert({
       where: {
@@ -413,28 +294,13 @@ router.post("/attendance", async (req, res) => {
   );
 
   await prisma.$transaction(upserts);
-
-  res.json({ message: "Attendance saved", count: records.length });
+  res.json({ message: "Attendance records securely written to database storage engine", count: records.length });
 });
 
 // ─── 7. GET /marks ──────────────────────────────────────────
 
 /**
- * GET /api/teacher/marks?class_name=10-A&subject_id=1&exam_name=Term+1
- *
- * Fetches marks for all students in a class for a specific
- * subject and exam. Students without a mark record will have
- * `mark: null`.
- *
- * Query params:
- * - class_name  (required): The class
- * - subject_id  (required): The subject ID
- * - exam_name   (required): The exam name
- *
- * Response: {
- * students: [{ id, name, mark: { id, score, examName } | null }],
- * className, subject, examName
- * }
+ * GET /api/teacher/marks?class_name=10-A&subject_id=uuid-here&exam_name=Term+1
  */
 router.get("/marks", async (req, res) => {
   const { class_name, subject_id, exam_name } = req.query;
@@ -445,61 +311,55 @@ router.get("/marks", async (req, res) => {
     });
   }
 
-  const subjectIdInt = parseInt(subject_id, 10);
-  if (isNaN(subjectIdInt)) {
-    return res.status(400).json({ error: "subject_id must be a valid integer" });
-  }
-
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
-
   if (!teacher) {
     return res.status(404).json({ error: "Teacher profile not found" });
   }
 
-  // Authorization: teacher must be assigned to this class + subject
-  const isAssigned = await verifyTeacherAssignment(
-    teacher.id,
-    class_name,
-    subjectIdInt
-  );
+  const targetSubjectId = String(subject_id).trim();
+
+  // Validate mapping link access bounds
+  const isAssigned = await verifyTeacherAssignment(teacher.id, class_name, targetSubjectId);
   if (!isAssigned) {
     return res.status(403).json({
       error: "You are not assigned to this class and subject combination",
     });
   }
 
-  // Look up the subject for the response payload
   const subject = await prisma.subject.findUnique({
-    where: { id: subjectIdInt },
+    where: { id: targetSubjectId },
     select: { id: true, name: true },
   });
 
   if (!subject) {
-    return res.status(404).json({ error: "Subject not found" });
+    return res.status(404).json({ error: "Subject context database item completely missing" });
   }
 
-  // Fetch students with their marks for this subject + exam
   const students = await prisma.student.findMany({
-    where: { className: class_name },
+    where: { className: String(class_name).trim() },
     select: {
       id: true,
       name: true,
       marks: {
         where: {
-          subjectId: subjectIdInt,
-          examName: exam_name,
+          subjectId: targetSubjectId,
+          examName: String(exam_name).trim(),
         },
-        select: { id: true, score: true, examName: true, maxScore: true },
+        select: { id: true, marksObtained: true, examName: true, maxMarks: true },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  // Flatten: marks array → single mark or null
   const result = students.map((s) => ({
     id: s.id,
     name: s.name,
-    mark: s.marks.length > 0 ? s.marks[0] : null,
+    mark: s.marks.length > 0 ? {
+      id: s.marks[0].id,
+      score: s.marks[0].marksObtained, // map structural schema output variable safely
+      examName: s.marks[0].examName,
+      maxScore: s.marks[0].maxMarks
+    } : null,
   }));
 
   res.json({
@@ -514,88 +374,32 @@ router.get("/marks", async (req, res) => {
 
 /**
  * POST /api/teacher/marks
- *
- * Uploads or updates marks for multiple students in a class
- * for a given subject and exam. Uses upsert with a transaction.
- *
- * Body: {
- * class_name: "10-A",
- * subject_id: 1,
- * exam_name: "Term 1",
- * total_mark: 100, // Optional; defaults to 100
- * marks: [
- * { student_id: 1, score: 85.5 },
- * { student_id: 2, score: 72 }
- * ]
- * }
- *
- * Response: { message: "Marks saved", count: N }
  */
 router.post("/marks", async (req, res) => {
   const { class_name, subject_id, exam_name, marks, total_mark } = req.body;
 
-  // ── Input validation ────────────────────────────────────
-  if (!class_name || subject_id === undefined || !exam_name || !Array.isArray(marks) || marks.length === 0) {
-    return res.status(400).json({
-      error: "class_name, subject_id, exam_name, and a non-empty marks array are required",
-    });
+  if (!class_name || !subject_id || !exam_name || !Array.isArray(marks) || marks.length === 0) {
+    return res.status(400).json({ error: "class_name, subject_id, exam_name, and a non-empty marks array are required" });
   }
 
-  if (typeof exam_name !== "string" || exam_name.trim() === "") {
-    return res.status(400).json({ error: "exam_name must be a non-empty string" });
-  }
-
-  const subjectIdInt = parseInt(subject_id, 10);
-  if (isNaN(subjectIdInt)) {
-    return res.status(400).json({ error: "subject_id must be a valid integer" });
-  }
-
+  const targetSubjectId = String(subject_id).trim();
   const maxScoreVal = total_mark !== undefined ? parseFloat(total_mark) : 100;
-  if (isNaN(maxScoreVal) || maxScoreVal <= 0) {
-    return res.status(400).json({ error: "total_mark must be a positive number" });
-  }
-
-  // Validate individual mark entries
-  for (const entry of marks) {
-    if (!entry.student_id) {
-      return res.status(400).json({ error: "Each mark entry must have a student_id" });
-    }
-    if (typeof entry.score !== "number" || isNaN(entry.score)) {
-      return res.status(400).json({
-        error: `Invalid score for student_id ${entry.student_id}. Score must be a number`,
-      });
-    }
-    if (entry.score < 0 || entry.score > maxScoreVal) {
-      return res.status(400).json({
-        error: `Score ${entry.score} for student_id ${entry.student_id} is out of range. Must be between 0 and ${maxScoreVal}`,
-      });
-    }
-  }
 
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
-
   if (!teacher) {
     return res.status(404).json({ error: "Teacher profile not found" });
   }
 
-  // Authorization: teacher must be assigned to this class + subject
-  const isAssigned = await verifyTeacherAssignment(
-    teacher.id,
-    class_name,
-    subjectIdInt
-  );
+  const isAssigned = await verifyTeacherAssignment(teacher.id, class_name, targetSubjectId);
   if (!isAssigned) {
-    return res.status(403).json({
-      error: "You are not assigned to this class and subject combination",
-    });
+    return res.status(403).json({ error: "Forbidden: Relational verification mapping validation failed" });
   }
 
-  // Validate that all student_ids belong to the given class
-  const studentIds = marks.map((m) => m.student_id);
+  const studentIds = marks.map((m) => String(m.student_id));
   const validStudents = await prisma.student.findMany({
     where: {
       id: { in: studentIds },
-      className: class_name,
+      className: String(class_name).trim(),
     },
     select: { id: true },
   });
@@ -609,142 +413,107 @@ router.post("/marks", async (req, res) => {
     });
   }
 
-  // ── Upsert marks in a transaction ───────────────────────
   const upserts = marks.map((entry) =>
     prisma.mark.upsert({
       where: {
         studentId_subjectId_examName: {
           studentId: entry.student_id,
-          subjectId: subjectIdInt,
-          examName: exam_name.trim(),
+          subjectId: targetSubjectId,
+          examName: String(exam_name).trim(),
         },
       },
       update: {
-        score: entry.score,
-        maxScore: maxScoreVal,
-        teacherId: teacher.id, // Update teacher in case of re-assignment
+        marksObtained: entry.score,
+        maxMarks: maxScoreVal,
+        teacherId: teacher.id,
       },
       create: {
         studentId: entry.student_id,
-        subjectId: subjectIdInt,
+        subjectId: targetSubjectId,
         teacherId: teacher.id,
-        score: entry.score,
-        maxScore: maxScoreVal,
-        examName: exam_name.trim(),
+        marksObtained: entry.score,
+        maxMarks: maxScoreVal,
+        examName: String(exam_name).trim(),
       },
     })
   );
 
   await prisma.$transaction(upserts);
-
-  res.json({ message: "Marks saved", count: marks.length });
+  res.json({ message: "Marks saved directly to live tracking index", count: marks.length });
 });
 
 // ─── 9. GET /exams ──────────────────────────────────────────
 
 /**
- * GET /api/teacher/exams?subject_id=1&class_name=10-A
- *
- * Returns the distinct exam names for a given subject within a
- * class. This lets the teacher see which exams already have
- * marks recorded.
- *
- * Query params:
- * - subject_id  (required): The subject ID
- * - class_name  (required): The class name
- *
- * Response: { exams: ["Term 1", "Mid-term", ...] }
+ * GET /api/teacher/exams?subject_id=uuid&class_name=10-A
  */
 router.get("/exams", async (req, res) => {
   const { subject_id, class_name } = req.query;
 
   if (!subject_id || !class_name) {
-    return res.status(400).json({
-      error: "subject_id and class_name query parameters are required",
-    });
-  }
-
-  const subjectIdInt = parseInt(subject_id, 10);
-  if (isNaN(subjectIdInt)) {
-    return res.status(400).json({ error: "subject_id must be a valid integer" });
+    return res.status(400).json({ error: "subject_id and class_name query parameters are required" });
   }
 
   const teacher = await getTeacherByEmpId(req.user.auth_identifier);
-
   if (!teacher) {
     return res.status(404).json({ error: "Teacher profile not found" });
   }
 
-  // Authorization: teacher must be assigned to this class + subject
-  const isAssigned = await verifyTeacherAssignment(
-    teacher.id,
-    class_name,
-    subjectIdInt
-  );
+  const targetSubjectId = String(subject_id).trim();
+
+  const isAssigned = await verifyTeacherAssignment(teacher.id, class_name, targetSubjectId);
   if (!isAssigned) {
-    return res.status(403).json({
-      error: "You are not assigned to this class and subject combination",
-    });
+    return res.status(403).json({ error: "You are not assigned to this class and subject configuration" });
   }
 
-  // Find all students in the class, then query distinct exam names
-  // from marks for those students and this subject
   const studentsInClass = await prisma.student.findMany({
-    where: { className: class_name },
+    where: { className: String(class_name).trim() },
     select: { id: true },
   });
 
   const studentIds = studentsInClass.map((s) => s.id);
 
-  // Use groupBy to get distinct examName values
   const examGroups = await prisma.mark.groupBy({
     by: ["examName"],
     where: {
-      subjectId: subjectIdInt,
+      subjectId: targetSubjectId,
       studentId: { in: studentIds },
     },
     orderBy: { examName: "asc" },
   });
 
-  const exams = examGroups.map((g) => g.examName);
-
-  res.json({ exams });
+  res.json({ exams: examGroups.map((g) => g.examName) });
 });
 
 // ─── 10. POST /change-password ────────────────────────────────
 
 /**
  * POST /api/teacher/change-password
- *
- * Changes the authenticated teacher's password and sets mustChangePassword to false.
  */
 router.post("/change-password", async (req, res) => {
   try {
     const { newPassword } = req.body;
     if (!newPassword) {
-      return res.status(400).json({ error: "New password is required." });
+      return res.status(400).json({ error: "New password payload is required" });
     }
 
     const userId = req.user.id;
     const empId = req.user.auth_identifier;
 
-    // Find the teacher profile to verify
     const teacher = await prisma.teacher.findFirst({
-      where: { userId, empId },
+      where: { userId, employeeId: empId },
     });
 
     if (!teacher) {
-      return res.status(404).json({ error: "Teacher profile not found." });
+      return res.status(404).json({ error: "Teacher verification context match failed" });
     }
 
-    // Hash the new password
-    const password_hash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(String(newPassword).trim(), 10);
 
-    // Update password hash and mustChangePassword
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
-        data: { password_hash },
+        data: { passwordHash },
       }),
       prisma.teacher.update({
         where: { id: teacher.id },
@@ -752,29 +521,10 @@ router.post("/change-password", async (req, res) => {
       }),
     ]);
 
-    res.json({ message: "Password updated successfully." });
+    res.json({ message: "Password updated successfully inside active user index matrix" });
   } catch (error) {
     console.error("Change password error:", error);
-    res.status(500).json({ error: "Failed to update password." });
-  }
-});
-
-/**
- * GET /api/teacher/announcements
- * Fetch all announcements targeted to TEACHER or BOTH.
- */
-router.get("/announcements", async (_req, res) => {
-  try {
-    const announcements = await prisma.announcement.findMany({
-      where: {
-        target: { in: ["TEACHER", "BOTH"] },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json(announcements);
-  } catch (error) {
-    console.error("Teacher fetch announcements error:", error);
-    res.status(500).json({ error: "Failed to fetch announcements" });
+    res.status(500).json({ error: "Failed to update security credentials records" });
   }
 });
 
