@@ -97,7 +97,7 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      // 🚀 CRITICAL FIX: Map different frontend field identities directly to backend 'auth_identifier' 
+      // Map different frontend field identities directly to backend 'auth_identifier' 
       const payload = {
         auth_identifier: activeTab === "admin" ? formData.email.trim() : formData.employeeId.trim(),
         password: formData.password,
@@ -156,6 +156,7 @@ export default function LoginForm() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => {
                 setActiveTab(tab.id);
                 setError("");
@@ -202,10 +203,11 @@ export default function LoginForm() {
           {activeTab === "admin" && (
             <form onSubmit={handleSubmit} className="space-y-5 tab-content-enter">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="admin-email" className="block text-sm font-medium text-slate-300 mb-2">
                   Email Address
                 </label>
                 <input
+                  id="admin-email"
                   type="email"
                   name="email"
                   value={formData.email}
@@ -216,11 +218,12 @@ export default function LoginForm() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="admin-password" className="block text-sm font-medium text-slate-300 mb-2">
                   Password
                 </label>
                 <div className="relative">
                   <input
+                    id="admin-password"
                     type={showPassword ? "text" : "password"}
                     name="password"
                     value={formData.password}
@@ -287,10 +290,11 @@ export default function LoginForm() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="reset-emp-id" className="block text-sm font-medium text-slate-300 mb-2">
                     Employee ID
                   </label>
                   <input
+                    id="reset-emp-id"
                     type="text"
                     value={resetForm.employeeId}
                     onChange={(e) => setResetForm({ ...resetForm, employeeId: e.target.value })}
@@ -299,10 +303,11 @@ export default function LoginForm() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="reset-phone" className="block text-sm font-medium text-slate-300 mb-2">
                     Phone Number
                   </label>
                   <input
+                    id="reset-phone"
                     type="text"
                     value={resetForm.phone}
                     onChange={(e) => setResetForm({ ...resetForm, phone: e.target.value })}
@@ -311,11 +316,12 @@ export default function LoginForm() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="reset-new-password" className="block text-sm font-medium text-slate-300 mb-2">
                     New Password
                   </label>
                   <div className="relative">
                     <input
+                      id="reset-new-password"
                       type={showResetPassword ? "text" : "password"}
                       value={resetForm.newPassword}
                       onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
@@ -345,11 +351,12 @@ export default function LoginForm() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-slate-300 mb-2">
                     Confirm Password
                   </label>
                   <div className="relative">
                     <input
+                      id="reset-confirm-password"
                       type={showResetPassword ? "text" : "password"}
                       value={resetForm.confirmPassword}
                       onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
@@ -409,10 +416,11 @@ export default function LoginForm() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5 tab-content-enter">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="teacher-emp-id" className="block text-sm font-medium text-slate-300 mb-2">
                     Employee ID
                   </label>
                   <input
+                    id="teacher-emp-id"
                     type="text"
                     name="employeeId"
                     value={formData.employeeId}
@@ -424,7 +432,7 @@ export default function LoginForm() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-slate-300">
+                    <label htmlFor="teacher-password" className="block text-sm font-medium text-slate-300">
                       Password
                     </label>
                     <button
@@ -442,6 +450,7 @@ export default function LoginForm() {
                   </div>
                   <div className="relative">
                     <input
+                      id="teacher-password"
                       type={showPassword ? "text" : "password"}
                       name="password"
                       value={formData.password}
