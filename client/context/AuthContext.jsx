@@ -31,19 +31,12 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Login for admin/teacher (email/employeeId + password)
-  const login = useCallback(async (credentials, role) => {
+  // 🚀 FIXED: Now safely accepts the unified payload sent from LoginForm
+  const login = useCallback(async (payload) => {
     const endpoint = "/auth/login";
-    const auth_identifier =
-      role.toUpperCase() === "ADMIN"
-        ? credentials.email
-        : credentials.employeeId;
 
-    const payload = {
-      auth_identifier,
-      password: credentials.password,
-      role: role.toUpperCase(),
-    };
+    // Debug log to ensure the data reaching the client pipeline is structured correctly
+    console.log("Submitting Auth Payload to Client:", payload);
 
     const data = await apiClient.post(endpoint, payload);
 
@@ -63,7 +56,7 @@ export function AuthProvider({ children }) {
 
     const userToStore = {
       ...userData,
-      role: userData.role || role.toUpperCase(),
+      role: userData.role || payload.role,
     };
 
     localStorage.setItem("user", JSON.stringify(userToStore));
