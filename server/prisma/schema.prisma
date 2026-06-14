@@ -4,7 +4,7 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-client"
+  provider = "prisma-client-js"
 }
 
 enum Role {
@@ -23,8 +23,8 @@ model User {
   identifier   String   @unique // Email for Admin, Employee ID for Teacher, Mobile for Parent
   passwordHash String
   role         Role
-  createdAt    @default(now())
-  updatedAt    @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   teacherProfile Teacher?
@@ -36,8 +36,8 @@ model Teacher {
   userId      String   @unique
   employeeId  String   @unique
   name        String
-  createdAt   @default(now())
-  updatedAt   @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -50,8 +50,8 @@ model Parent {
   userId       String    @unique
   parentMobile String    @unique // Matches the parentMobile criteria across students
   name         String
-  createdAt    @default(now())
-  updatedAt    @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Relations
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -63,8 +63,8 @@ model Student {
   name         String
   className    String   // e.g., "10-A", "11-B"
   parentMobile String   // Structural logical link to Parent profile
-  createdAt    @default(now())
-  updatedAt    @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   parent       Parent?  @relation(fields: [parentMobile], references: [parentMobile], onDelete: SetNull)
@@ -78,8 +78,8 @@ model Student {
 model Subject {
   id          String   @id @default(uuid())
   name        String   @unique
-  createdAt   @default(now())
-  updatedAt   @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
   assignments TeacherAssignment[]
@@ -91,8 +91,8 @@ model TeacherAssignment {
   teacherId String
   subjectId String
   className String   // e.g., "10-A"
-  createdAt @default(now())
-  updatedAt @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
