@@ -65,11 +65,8 @@ export default function LoginForm() {
     confirmPassword: "",
   });
   const [successMessage, setSuccessMessage] = useState("");
-<<<<<<< HEAD
-=======
   const [showPassword, setShowPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
 
   const router = useRouter();
   const { login } = useAuth();
@@ -85,7 +82,7 @@ export default function LoginForm() {
     e.preventDefault();
     setError("");
 
-    // Validate
+    // Validate inputs locally
     if (activeTab === "admin") {
       if (!formData.email || !formData.password) {
         setError("Please fill in all fields");
@@ -100,15 +97,18 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      const credentials =
-        activeTab === "admin"
-          ? { email: formData.email, password: formData.password }
-          : { employeeId: formData.employeeId, password: formData.password };
+      // 🚀 CRITICAL FIX: Map different frontend field identities directly to backend 'auth_identifier' 
+      const payload = {
+        auth_identifier: activeTab === "admin" ? formData.email.trim() : formData.employeeId.trim(),
+        password: formData.password,
+        role: activeTab.toUpperCase() // Becomes "ADMIN" or "TEACHER"
+      };
 
-      await login(credentials, activeTab.toUpperCase());
+      // Pass the fully normalized payload down to your context's login runner
+      await login(payload);
       router.push(`/${activeTab}/dashboard`);
     } catch (err) {
-      setError(err.message || "Login failed. Please check your credentials.");
+      setError(err.data?.error || err.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -138,7 +138,6 @@ export default function LoginForm() {
       });
       setSuccessMessage(res.message || "Password reset successfully. You can now login.");
       setIsResettingPassword(false);
-      // Pre-fill employee ID for convenient login
       setFormData((prev) => ({ ...prev, employeeId: resetForm.employeeId }));
       setResetForm({ employeeId: "", phone: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
@@ -162,11 +161,8 @@ export default function LoginForm() {
                 setError("");
                 setSuccessMessage("");
                 setIsResettingPassword(false);
-<<<<<<< HEAD
-=======
                 setShowPassword(false);
                 setShowResetPassword(false);
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
               }}
               className={`flex-1 py-4 px-3 text-sm font-medium transition-all duration-300 relative ${
                 activeTab === tab.id
@@ -223,17 +219,6 @@ export default function LoginForm() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Password
                 </label>
-<<<<<<< HEAD
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="••••••••"
-                  className={`w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none ${currentTab.focusRing} focus:ring-2 transition-all duration-200`}
-                  autoComplete="current-password"
-                />
-=======
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -265,7 +250,6 @@ export default function LoginForm() {
                     )}
                   </button>
                 </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
               </div>
 
               {error && (
@@ -330,15 +314,6 @@ export default function LoginForm() {
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     New Password
                   </label>
-<<<<<<< HEAD
-                  <input
-                    type="password"
-                    value={resetForm.newPassword}
-                    onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
-                    placeholder="••••••••"
-                    className={`w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none ${currentTab.focusRing} focus:ring-2 transition-all duration-200`}
-                  />
-=======
                   <div className="relative">
                     <input
                       type={showResetPassword ? "text" : "password"}
@@ -368,21 +343,11 @@ export default function LoginForm() {
                       )}
                     </button>
                   </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     Confirm Password
                   </label>
-<<<<<<< HEAD
-                  <input
-                    type="password"
-                    value={resetForm.confirmPassword}
-                    onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
-                    placeholder="••••••••"
-                    className={`w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none ${currentTab.focusRing} focus:ring-2 transition-all duration-200`}
-                  />
-=======
                   <div className="relative">
                     <input
                       type={showResetPassword ? "text" : "password"}
@@ -412,7 +377,6 @@ export default function LoginForm() {
                       )}
                     </button>
                   </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
                 </div>
 
                 {error && (
@@ -476,17 +440,6 @@ export default function LoginForm() {
                       Forgot password?
                     </button>
                   </div>
-<<<<<<< HEAD
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="••••••••"
-                    className={`w-full px-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:outline-none ${currentTab.focusRing} focus:ring-2 transition-all duration-200`}
-                    autoComplete="current-password"
-                  />
-=======
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
@@ -518,7 +471,6 @@ export default function LoginForm() {
                       )}
                     </button>
                   </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
                 </div>
 
                 {successMessage && (
