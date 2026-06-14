@@ -31,19 +31,13 @@ function AdminShell({ children }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
   const [updatingSettings, setUpdatingSettings] = useState(false);
-<<<<<<< HEAD
-=======
   const [showPassword, setShowPassword] = useState(false);
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
 
   function openSettings() {
     setEmailInput(user?.auth_identifier || "");
     setPasswordInput("");
     setConfirmPasswordInput("");
-<<<<<<< HEAD
-=======
     setShowPassword(false);
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
     setSettingsModalOpen(true);
   }
 
@@ -194,11 +188,7 @@ function AdminShell({ children }) {
       </main>
 
       {/* Admin Settings Modal */}
-<<<<<<< HEAD
-      <Modal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} title="Admin Settings">
-=======
       <Modal isOpen={settingsModalOpen} onClose={() => { setSettingsModalOpen(false); setShowPassword(false); }} title="Admin Settings">
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -218,15 +208,6 @@ function AdminShell({ children }) {
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               New Password (leave blank to keep current)
             </label>
-<<<<<<< HEAD
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-=======
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -256,22 +237,12 @@ function AdminShell({ children }) {
                 )}
               </button>
             </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               Confirm New Password
             </label>
-<<<<<<< HEAD
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={confirmPasswordInput}
-              onChange={(e) => setConfirmPasswordInput(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-=======
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -301,17 +272,12 @@ function AdminShell({ children }) {
                 )}
               </button>
             </div>
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
-<<<<<<< HEAD
-              onClick={() => setSettingsModalOpen(false)}
-=======
               onClick={() => { setSettingsModalOpen(false); setShowPassword(false); }}
->>>>>>> 3433e98 (Fix SMP tracking and complete proxy migration)
               className="px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
             >
               Cancel
